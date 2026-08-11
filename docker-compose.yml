@@ -1,0 +1,67 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: outbox
+      POSTGRES_PASSWORD: outbox
+      POSTGRES_DB: outbox
+    ports:
+      - "54329:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U outbox -d outbox"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mock-target:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ./examples/sample_app:/app
+    command: ["python", "mock_target.py"]
+    ports:
+      - "8099:8099"
+
+  migrate:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://outbox:outbox@postgres:5432/outbox
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["alembic", "-c", "alembic.ini", "upgrade", "head"]
+
+  sample-api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://outbox:outbox@postgres:5432/outbox
+      OUTBOX_REPLAY_ENABLED: "false"
+      OUTBOX_ADMIN_API_KEY: "dev-admin-key"
+      OUTBOX_REPLAY_ENDPOINT_CUSTOMER_INVOICE: http://mock-target:8099/invoice
+      OUTBOX_REPLAY_ENDPOINT_CUSTOMER_PAYMENT: http://mock-target:8099/payment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      mock-target:
+        condition: service_started
+    command: ["uvicorn", "examples.sample_app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+    ports:
+      - "8080:8080"
+
+  sample-replay:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://outbox:outbox@postgres:5432/outbox
+      OUTBOX_REPLAY_ENABLED: "true"
+      OUTBOX_REPLAY_WORKER_COUNT: "4"
+      OUTBOX_REPLAY_POLL_INTERVAL_MS: "500"
+      OUTBOX_REPLAY_INITIAL_RETRY_DELAY_MS: "1000"
+      OUTBOX_REPLAY_ENDPOINT_CUSTOMER_INVOICE: http://mock-target:8099/invoice
+      OUTBOX_REPLAY_ENDPOINT_CUSTOMER_PAYMENT: http://mock-target:8099/payment
+      OUTBOX_REPLAY_HEADER_X_SERVICE_NAME: pharmacy
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      mock-target:
+        condition: service_started
+    command: ["python", "-m", "hms_outbox", "replay"]

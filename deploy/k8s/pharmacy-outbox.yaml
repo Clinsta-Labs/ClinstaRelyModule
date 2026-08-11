@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pharmacy-outbox-config
+data:
+  OUTBOX_REPLAY_WORKER_COUNT: "10"
+  OUTBOX_REPLAY_POLL_INTERVAL_MS: "1000"
+  OUTBOX_REPLAY_ENDPOINT_CUSTOMER_INVOICE: "http://accounting/internal/customer/invoice"
+  OUTBOX_REPLAY_ENDPOINT_CUSTOMER_PAYMENT: "http://accounting/internal/customer/payment"
+  OUTBOX_REPLAY_HEADER_X_SERVICE_NAME: "pharmacy"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pharmacy-outbox-secret
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql+asyncpg://user:pass@postgres:5432/pharmacy"
+  OUTBOX_ADMIN_API_KEY: "replace-me"
+  # OUTBOX_REPLAY_HEADER_AUTHORIZATION: "Bearer replace-me"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pharmacy-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pharmacy-api
+  template:
+    metadata:
+      labels:
+        app: pharmacy-api
+    spec:
+      containers:
+        - name: api
+          image: pharmacy:latest
+          command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+          env:
+            - name: OUTBOX_REPLAY_ENABLED
+              value: "false"
+          envFrom:
+            - configMapRef:
+                name: pharmacy-outbox-config
+            - secretRef:
+                name: pharmacy-outbox-secret
+          ports:
+            - containerPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pharmacy-replay
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pharmacy-replay
+  template:
+    metadata:
+      labels:
+        app: pharmacy-replay
+    spec:
+      containers:
+        - name: replay
+          image: pharmacy:latest
+          command: ["python", "-m", "hms_outbox", "replay"]
+          env:
+            - name: OUTBOX_REPLAY_ENABLED
+              value: "true"
+          envFrom:
+            - configMapRef:
+                name: pharmacy-outbox-config
+            - secretRef:
+                name: pharmacy-outbox-secret

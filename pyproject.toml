@@ -1,0 +1,104 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hms-outbox"
+version = "0.1.0"
+description = "Reusable transactional Outbox producer and Group-FIFO replay engine for HMS services"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "HMS Platform" }]
+keywords = ["outbox", "replay", "fifo", "hms", "transactional-outbox"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Framework :: FastAPI",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Typing :: Typed",
+]
+dependencies = [
+  "sqlalchemy[asyncio]>=2.0.25",
+  "asyncpg>=0.29.0",
+  "psycopg[binary]>=3.1.18",
+  "httpx>=0.27.0",
+  "pydantic>=2.6.0",
+  "pydantic-settings>=2.2.0",
+]
+
+[project.optional-dependencies]
+fastapi = ["fastapi>=0.110.0"]
+dev = [
+  "fastapi>=0.110.0",
+  "uvicorn[standard]>=0.27.0",
+  "pytest>=8.0.0",
+  "pytest-asyncio>=0.23.0",
+  "pytest-cov>=5.0.0",
+  "respx>=0.21.0",
+  "testcontainers[postgres]>=4.4.0",
+  "ruff>=0.3.0",
+  "black>=24.0.0",
+  "mypy>=1.8.0",
+  "types-setuptools",
+  "alembic>=1.13.0",
+  "httpx>=0.27.0",
+]
+alembic = ["alembic>=1.13.0"]
+all = ["hms-outbox[fastapi,dev,alembic]"]
+
+[project.scripts]
+hms-outbox = "hms_outbox.cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hms_outbox"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/migrations", "/docs", "/README.md", "/LICENSE"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+markers = [
+  "performance: heavy performance benchmarks (opt-in)",
+  "integration: PostgreSQL integration tests",
+  "concurrency: multi-worker / multi-process concurrency tests",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["hms_outbox"]
+omit = ["*/cli/*"]
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true
+skip_empty = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+packages = ["hms_outbox"]
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["testcontainers.*", "asyncpg.*"]
+ignore_missing_imports = true
