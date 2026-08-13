@@ -34,6 +34,9 @@ OUTBOX_REPLAY_HEADER_<HEADER_NAME>=value
 
 Event types must match `^[A-Z][A-Z0-9_]*$`.
 
+`organization_id` is **per event** (producer argument / table column), not an environment variable.
+The library always sets request header `X-Outbox-Organization-Id` from the claimed row.
+
 Example:
 
 ```env

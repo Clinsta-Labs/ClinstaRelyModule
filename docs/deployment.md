@@ -16,3 +16,5 @@ See `docker-compose.yml` and `deploy/k8s/` for examples.
 ## Horizontal scale
 
 Multiple replay processes may run against the same Outbox table. PostgreSQL locking coordinates claims — no external lock service.
+
+Multi-tenant deployments still use **one** `outbox_event` table per application database. Tenancy is expressed per row via `organization_id`; FIFO and claim eligibility are scoped by `(organization_id, event_group)`.

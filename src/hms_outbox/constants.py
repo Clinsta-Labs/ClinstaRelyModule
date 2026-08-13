@@ -31,3 +31,6 @@ EVENT_TYPE_PATTERN = r"^[A-Z][A-Z0-9_]*$"
 # Target response headers (primary source of reply identity).
 HEADER_REPLY_REFERENCE_TYPE = "X-Outbox-Reply-Reference-Type"
 HEADER_REPLY_REFERENCE = "X-Outbox-Reply-Reference"
+
+# Sent on every outbound dispatch request (tenancy context).
+HEADER_ORGANIZATION_ID = "X-Outbox-Organization-Id"

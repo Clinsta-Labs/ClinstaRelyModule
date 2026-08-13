@@ -24,6 +24,7 @@ app.include_router(create_outbox_router(settings=settings, session_factory=sessi
 
 @app.post("/demo/invoice")
 async def create_invoice(body: dict[str, Any]) -> dict[str, Any]:
+    organization_id = int(body.get("organizationId", 1))
     customer_id = str(body.get("customerId", "1001"))
     sequence = int(body.get("sequence", 1))
     invoice_id = str(body.get("invoiceId", f"INV-{sequence}"))
@@ -31,6 +32,7 @@ async def create_invoice(body: dict[str, Any]) -> dict[str, Any]:
         async with session.begin():
             event_id = await producer.publish_async(
                 session,
+                organization_id=organization_id,
                 event_type="CUSTOMER_INVOICE",
                 event_group=f"CUSTOMER-{customer_id}",
                 group_sequence=sequence,
@@ -38,7 +40,11 @@ async def create_invoice(body: dict[str, Any]) -> dict[str, Any]:
                 reference=invoice_id,
                 payload={"invoiceId": invoice_id, "customerId": customer_id},
             )
-    return {"eventId": str(event_id), "invoiceId": invoice_id}
+    return {
+        "eventId": str(event_id),
+        "invoiceId": invoice_id,
+        "organizationId": organization_id,
+    }
 
 
 @app.get("/health")

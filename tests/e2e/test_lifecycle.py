@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 import httpx
 import pytest
@@ -56,6 +57,7 @@ async def test_e2e_lifecycle(
         async with session.begin():
             event_id = await producer.publish_async(
                 session,
+                organization_id=1,
                 event_type="CUSTOMER_INVOICE",
                 event_group="CUSTOMER-1001",
                 group_sequence=1,
@@ -87,6 +89,9 @@ async def test_e2e_lifecycle(
     request = route.calls[0].request
     assert request.headers["Idempotency-Key"] == str(event_id)
     assert request.headers["X-Outbox-Event-Id"] == str(event_id)
+    assert request.headers["X-Outbox-Organization-Id"] == "1"
+    body = json.loads(request.content.decode("utf-8"))
+    assert body["organizationId"] == 1
 
     async with async_session_factory() as session:
         event = await repository.get_required_async(session, event_id)
@@ -133,6 +138,7 @@ async def test_idempotency_key_preserved_on_retry(
         async with session.begin():
             event_id = await producer.publish_async(
                 session,
+                organization_id=1,
                 event_type="CUSTOMER_INVOICE",
                 event_group="IDEM",
                 group_sequence=1,
@@ -183,6 +189,7 @@ async def test_missing_endpoint_exhausts(
         async with session.begin():
             event_id = await producer.publish_async(
                 session,
+                organization_id=1,
                 event_type="CUSTOMER_INVOICE",
                 event_group="NOEP",
                 group_sequence=1,
@@ -233,6 +240,7 @@ async def test_non_retryable_http_exhausts(
         async with session.begin():
             event_id = await producer.publish_async(
                 session,
+                organization_id=1,
                 event_type="CUSTOMER_INVOICE",
                 event_group="NR",
                 group_sequence=1,
@@ -289,6 +297,7 @@ async def test_e2e_reply_headers_with_native_json(
         async with session.begin():
             event_id = await producer.publish_async(
                 session,
+                organization_id=1,
                 event_type="CUSTOMER_INVOICE",
                 event_group="HDR",
                 group_sequence=1,
@@ -339,6 +348,7 @@ async def test_2xx_without_reply_identity_exhausts(
         async with session.begin():
             event_id = await producer.publish_async(
                 session,
+                organization_id=1,
                 event_type="CUSTOMER_INVOICE",
                 event_group="NOID",
                 group_sequence=1,

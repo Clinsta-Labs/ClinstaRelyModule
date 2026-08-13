@@ -88,6 +88,7 @@ class ReplayWorker:
                 "Finished processing attempt",
                 extra={
                     "event_id": str(event.event_id),
+                    "organization_id": event.organization_id,
                     "event_type": event.event_type,
                     "event_group": event.event_group,
                     "group_sequence": event.group_sequence,

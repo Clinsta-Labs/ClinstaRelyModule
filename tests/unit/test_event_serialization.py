@@ -13,6 +13,7 @@ def test_dispatch_body_and_to_dict() -> None:
     created = datetime(2026, 8, 11, 10, 0, 0, tzinfo=timezone.utc)
     event = OutboxEvent(
         event_id=event_id,
+        organization_id=7,
         event_type="CUSTOMER_INVOICE",
         event_group="CUSTOMER-1001",
         group_sequence=42,
@@ -26,6 +27,7 @@ def test_dispatch_body_and_to_dict() -> None:
     )
     body = event.dispatch_body()
     assert body["eventId"] == str(event_id)
+    assert body["organizationId"] == 7
     assert body["eventType"] == "CUSTOMER_INVOICE"
     assert body["group"] == "CUSTOMER-1001"
     assert body["groupSequence"] == 42
@@ -34,4 +36,5 @@ def test_dispatch_body_and_to_dict() -> None:
 
     as_dict = event.to_dict()
     assert as_dict["eventId"] == str(event_id)
+    assert as_dict["organizationId"] == 7
     assert as_dict["status"] == "CREATED"

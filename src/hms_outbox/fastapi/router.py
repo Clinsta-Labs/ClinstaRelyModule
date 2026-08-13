@@ -92,6 +92,7 @@ def create_outbox_router(
         session: AsyncSession = Depends(get_session),
         limit: int = Query(50, ge=1, le=500),
         offset: int = Query(0, ge=0),
+        organization_id: int | None = None,
         event_type: str | None = None,
         event_group: str | None = None,
         status_filter: str | None = Query(None, alias="status"),
@@ -102,6 +103,7 @@ def create_outbox_router(
             session,
             limit=limit,
             offset=offset,
+            organization_id=organization_id,
             event_type=event_type,
             event_group=event_group,
             status=status_filter,
@@ -114,6 +116,7 @@ def create_outbox_router(
         session: AsyncSession = Depends(get_session),
         limit: int = Query(50, ge=1, le=500),
         offset: int = Query(0, ge=0),
+        organization_id: int | None = None,
         event_type: str | None = None,
         event_group: str | None = None,
         reference_type: str | None = None,
@@ -127,6 +130,7 @@ def create_outbox_router(
             session,
             limit=limit,
             offset=offset,
+            organization_id=organization_id,
             event_type=event_type,
             event_group=event_group,
             reference_type=reference_type,
@@ -160,10 +164,12 @@ def create_outbox_router(
 
     @router.post("/groups/{group}/retry", dependencies=[Depends(require_api_key)])
     async def retry_group(
-        group: str, session: AsyncSession = Depends(get_session)
+        group: str,
+        organization_id: int = Query(..., ge=1),
+        session: AsyncSession = Depends(get_session),
     ) -> dict[str, Any]:
         async with session.begin():
-            return await admin.retry_group_async(session, group)
+            return await admin.retry_group_async(session, organization_id, group)
 
     @router.get("/health")
     async def health_endpoint() -> dict[str, Any]:

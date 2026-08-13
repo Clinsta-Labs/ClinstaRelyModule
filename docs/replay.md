@@ -22,14 +22,15 @@ Workers never process multiple events concurrently.
 An event is eligible when:
 
 - status is `CREATED`, or `FAILED` and retry delay has elapsed
-- it is the lowest unprocessed sequence for its group
-- no earlier event in the group is in `CREATED`, `PROCESSING`, `FAILED`, or `RETRY_EXHAUSTED`
+- it is the lowest unprocessed sequence for its `(organization_id, event_group)`
+- no earlier event in the same org+group is in `CREATED`, `PROCESSING`, `FAILED`, or `RETRY_EXHAUSTED`
 
 ## HTTP request
 
 ```json
 {
   "eventId": "...",
+  "organizationId": 1,
   "eventType": "CUSTOMER_INVOICE",
   "group": "CUSTOMER-1001",
   "groupSequence": 42,
@@ -40,7 +41,8 @@ An event is eligible when:
 }
 ```
 
-Headers: `Content-Type`, `Idempotency-Key`, `X-Outbox-Event-Id`, `X-Outbox-Event-Type`, plus any `OUTBOX_REPLAY_HEADER_*`.
+Headers: `Content-Type`, `Idempotency-Key`, `X-Outbox-Event-Id`, `X-Outbox-Event-Type`, `X-Outbox-Organization-Id`, plus any `OUTBOX_REPLAY_HEADER_*`.
+The library always sets `X-Outbox-Organization-Id` from the row (not from env).
 
 ## Success response
 

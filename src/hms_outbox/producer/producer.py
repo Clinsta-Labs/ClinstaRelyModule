@@ -13,6 +13,28 @@ from hms_outbox.db.repository import OutboxRepository
 from hms_outbox.models.event import OutboxEvent, create_outbox_event_model
 
 
+def _validate_publish_args(
+    *,
+    organization_id: int,
+    event_type: str,
+    event_group: str,
+    group_sequence: int,
+    payload: dict[str, Any] | None,
+) -> None:
+    if not isinstance(organization_id, int) or isinstance(organization_id, bool):
+        raise ValueError("organization_id must be an int")
+    if organization_id <= 0:
+        raise ValueError("organization_id must be > 0")
+    if group_sequence < 0:
+        raise ValueError("group_sequence must be >= 0")
+    if not event_type:
+        raise ValueError("event_type is required")
+    if not event_group:
+        raise ValueError("event_group is required")
+    if payload is None:
+        raise ValueError("payload is required")
+
+
 class OutboxProducer:
     """Lightweight producer API for inserting Outbox events.
 
@@ -23,7 +45,7 @@ class OutboxProducer:
 
         with session.begin():
             create_invoice(...)
-            event_id = outbox.publish(session, ...)
+            event_id = outbox.publish(session, organization_id=1, ...)
     """
 
     def __init__(
@@ -45,6 +67,7 @@ class OutboxProducer:
         self,
         session: Session,
         *,
+        organization_id: int,
         event_type: str,
         event_group: str,
         group_sequence: int,
@@ -57,17 +80,17 @@ class OutboxProducer:
 
         Returns the EventId. Does not commit.
         """
-        if group_sequence < 0:
-            raise ValueError("group_sequence must be >= 0")
-        if not event_type:
-            raise ValueError("event_type is required")
-        if not event_group:
-            raise ValueError("event_group is required")
-        if payload is None:
-            raise ValueError("payload is required")
+        _validate_publish_args(
+            organization_id=organization_id,
+            event_type=event_type,
+            event_group=event_group,
+            group_sequence=group_sequence,
+            payload=payload,
+        )
 
         event = self.model(
             event_id=event_id or uuid.uuid4(),
+            organization_id=organization_id,
             event_type=event_type,
             event_group=event_group,
             group_sequence=group_sequence,
@@ -84,6 +107,7 @@ class OutboxProducer:
         self,
         session: AsyncSession,
         *,
+        organization_id: int,
         event_type: str,
         event_group: str,
         group_sequence: int,
@@ -96,17 +120,17 @@ class OutboxProducer:
 
         Returns the EventId. Does not commit.
         """
-        if group_sequence < 0:
-            raise ValueError("group_sequence must be >= 0")
-        if not event_type:
-            raise ValueError("event_type is required")
-        if not event_group:
-            raise ValueError("event_group is required")
-        if payload is None:
-            raise ValueError("payload is required")
+        _validate_publish_args(
+            organization_id=organization_id,
+            event_type=event_type,
+            event_group=event_group,
+            group_sequence=group_sequence,
+            payload=payload,
+        )
 
         event = self.model(
             event_id=event_id or uuid.uuid4(),
+            organization_id=organization_id,
             event_type=event_type,
             event_group=event_group,
             group_sequence=group_sequence,

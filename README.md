@@ -23,12 +23,13 @@ If those headers are absent, the spec JSON body (`success`, `replyReferenceType`
 ## Features
 
 - Transactional Outbox producer (sync `Session` and async `AsyncSession`)
-- Group-FIFO ordering with cross-group parallelism
+- Group-FIFO ordering within `(organization_id, event_group)` with cross-org / cross-group parallelism
 - Atomic claiming via PostgreSQL `FOR UPDATE SKIP LOCKED`
 - Configurable worker pool, retries, exponential backoff, jitter
 - Processing-timeout recovery for crashed workers
 - Environment-driven EventType → endpoint mapping (no Python handlers)
 - Statistics, failed-event APIs, manual retry / retry-group
+- Dispatch always sends `organizationId` (body) and `X-Outbox-Organization-Id` (header)
 - CLI (`python -m hms_outbox ...`)
 - Optional FastAPI admin router (`X-API-Key`)
 
@@ -78,6 +79,7 @@ with session.begin():
     invoice = create_invoice(...)
     event_id = outbox.publish(
         session,
+        organization_id=invoice.organization_id,
         event_type="CUSTOMER_INVOICE",
         event_group=f"CUSTOMER-{invoice.customer_id}",
         group_sequence=invoice.sequence,
@@ -121,7 +123,7 @@ python -m hms_outbox stats
 python -m hms_outbox failed
 python -m hms_outbox event <event-id>
 python -m hms_outbox retry <event-id>
-python -m hms_outbox retry-group <group>
+python -m hms_outbox retry-group <group> --organization-id <org-id>
 python -m hms_outbox health
 ```
 

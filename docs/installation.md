@@ -22,6 +22,14 @@ export DATABASE_URL=postgresql+psycopg://user:pass@host:5432/db
 alembic -c alembic.ini upgrade head
 ```
 
+### Upgrading to 0.2.0
+
+`0.2.0` adds mandatory `organization_id INTEGER NOT NULL`.
+
+- **Greenfield:** initial migration already includes the column.
+- **Existing empty table:** revision `20260813_0002` adds the column.
+- **Existing rows without org:** migration refuses to invent ids — truncate or backfill before upgrade.
+
 ## Verify
 
 ```bash

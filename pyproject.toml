@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "hms-outbox"
-version = "0.1.0"
+version = "0.2.0"
 description = "Reusable transactional Outbox producer and Group-FIFO replay engine for HMS services"
 readme = "README.md"
 license = "MIT"

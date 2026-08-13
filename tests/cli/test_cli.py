@@ -14,7 +14,7 @@ def test_parser_commands() -> None:
     assert parser.parse_args(["failed"]).command == "failed"
     assert parser.parse_args(["event", "00000000-0000-0000-0000-000000000001"]).command == "event"
     assert parser.parse_args(["retry", "00000000-0000-0000-0000-000000000001"]).command == "retry"
-    assert parser.parse_args(["retry-group", "G1"]).command == "retry-group"
+    assert parser.parse_args(["retry-group", "G1", "--organization-id", "1"]).command == "retry-group"
     assert parser.parse_args(["health"]).command == "health"
     assert parser.parse_args(["replay"]).command == "replay"
 

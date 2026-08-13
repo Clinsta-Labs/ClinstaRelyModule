@@ -25,6 +25,7 @@ async def test_insert_claim_sync_flow(
         async with session.begin():
             event_id = await producer.publish_async(
                 session,
+                organization_id=1,
                 event_type="CUSTOMER_INVOICE",
                 event_group="CUSTOMER-1",
                 group_sequence=1,
@@ -74,6 +75,7 @@ async def test_failed_and_exhaustion(
         async with session.begin():
             event_id = await producer.publish_async(
                 session,
+                organization_id=1,
                 event_type="CUSTOMER_INVOICE",
                 event_group="G-EX",
                 group_sequence=1,
@@ -175,7 +177,7 @@ async def test_retry_group_only_retry_exhausted(
         async with session.begin():
             await repository.add_async(session, failed)
             await repository.add_async(session, exhausted)
-            result = await repository.retry_group_async(session, "GRP")
+            result = await repository.retry_group_async(session, 1, "GRP")
             assert result is not None
             assert result.event_id == exhausted.event_id
             assert result.status == EventStatus.CREATED.value
@@ -195,6 +197,7 @@ async def test_ownership_prevents_stale_update(
         async with session.begin():
             event_id = await producer.publish_async(
                 session,
+                organization_id=1,
                 event_type="CUSTOMER_INVOICE",
                 event_group="OWN",
                 group_sequence=1,

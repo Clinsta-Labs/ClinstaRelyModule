@@ -127,6 +127,7 @@ def producer() -> OutboxProducer:
 
 def make_event(
     *,
+    organization_id: int = 1,
     event_type: str = "CUSTOMER_INVOICE",
     event_group: str = "CUSTOMER-1",
     group_sequence: int = 1,
@@ -137,6 +138,7 @@ def make_event(
 ) -> OutboxEvent:
     return OutboxEvent(
         event_id=event_id or uuid.uuid4(),
+        organization_id=organization_id,
         event_type=event_type,
         event_group=event_group,
         group_sequence=group_sequence,

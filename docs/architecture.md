@@ -26,9 +26,9 @@ Same image/package; different command and env.
 | Guarantee | Mechanism |
 |-----------|-----------|
 | At-least-once delivery | Retry after FAILED / timeout |
-| FIFO within Group | DB eligibility: lowest unprocessed `group_sequence` |
-| Parallel across Groups | Multiple workers + SKIP LOCKED |
-| Group blocking | Earlier FAILED/PROCESSING/CREATED/RETRY_EXHAUSTED blocks later sequences |
+| FIFO within `(organization_id, event_group)` | DB eligibility: lowest unprocessed `group_sequence` in that org+group |
+| Parallel across orgs / groups | Multiple workers + SKIP LOCKED |
+| Group blocking | Earlier FAILED/PROCESSING/CREATED/RETRY_EXHAUSTED blocks later sequences **in the same org+group** |
 | No duplicate concurrent claim | Atomic claim UPDATE … FOR UPDATE SKIP LOCKED |
 | Crash recovery | PROCESSING older than timeout → FAILED |
 | Reply identity required | Headers `X-Outbox-Reply-Reference-*`, else spec JSON body |

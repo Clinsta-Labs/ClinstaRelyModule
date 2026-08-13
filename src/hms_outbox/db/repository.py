@@ -109,11 +109,12 @@ WHERE o.event_id = (
       AND NOT EXISTS (
             SELECT 1
             FROM {table} AS earlier
-            WHERE earlier.event_group = e.event_group
+            WHERE earlier.organization_id = e.organization_id
+              AND earlier.event_group = e.event_group
               AND earlier.group_sequence < e.group_sequence
               AND earlier.status IN (:created, :processing, :failed, :retry_exhausted)
         )
-    ORDER BY e.event_group, e.group_sequence, e.created_at, e.event_id
+    ORDER BY e.organization_id, e.event_group, e.group_sequence, e.created_at, e.event_id
     FOR UPDATE OF e SKIP LOCKED
     LIMIT 1
 )
@@ -478,6 +479,7 @@ RETURNING o.event_id
     def _filter_stmt(
         self,
         *,
+        organization_id: int | None = None,
         event_type: str | None = None,
         event_group: str | None = None,
         reference_type: str | None = None,
@@ -488,6 +490,8 @@ RETURNING o.event_id
         status: str | Sequence[str] | None = None,
     ) -> Select[Any]:
         stmt = select(self.model)
+        if organization_id is not None:
+            stmt = stmt.where(self.model.organization_id == organization_id)
         if event_type:
             stmt = stmt.where(self.model.event_type == event_type)
         if event_group:
@@ -631,14 +635,17 @@ RETURNING o.event_id
         await session.flush()
         return event
 
-    def retry_group(self, session: Session, event_group: str) -> OutboxEvent | None:
-        """Reset the lowest-sequence RETRY_EXHAUSTED event in the group.
+    def retry_group(
+        self, session: Session, organization_id: int, event_group: str
+    ) -> OutboxEvent | None:
+        """Reset the lowest-sequence RETRY_EXHAUSTED event in the org+group.
 
         FAILED events are left for the automatic retry policy.
         """
         stmt = (
             select(self.model)
             .where(
+                self.model.organization_id == organization_id,
                 self.model.event_group == event_group,
                 self.model.status == EventStatus.RETRY_EXHAUSTED.value,
             )
@@ -652,11 +659,12 @@ RETURNING o.event_id
         return self.retry_event(session, event.event_id)
 
     async def retry_group_async(
-        self, session: AsyncSession, event_group: str
+        self, session: AsyncSession, organization_id: int, event_group: str
     ) -> OutboxEvent | None:
         stmt = (
             select(self.model)
             .where(
+                self.model.organization_id == organization_id,
                 self.model.event_group == event_group,
                 self.model.status == EventStatus.RETRY_EXHAUSTED.value,
             )

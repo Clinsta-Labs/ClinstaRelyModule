@@ -25,6 +25,7 @@ async def test_two_workers_cannot_claim_same_event(
         async with session.begin():
             await producer.publish_async(
                 session,
+                organization_id=1,
                 event_type="CUSTOMER_INVOICE",
                 event_group="SAME",
                 group_sequence=1,
@@ -58,6 +59,7 @@ async def test_different_groups_claimed_concurrently(
             for group in ("A", "B", "C"):
                 await producer.publish_async(
                     session,
+                    organization_id=1,
                     event_type="CUSTOMER_INVOICE",
                     event_group=group,
                     group_sequence=1,
@@ -92,6 +94,7 @@ async def test_same_group_not_claimed_concurrently(
             for seq in (1, 2):
                 await producer.publish_async(
                     session,
+                    organization_id=1,
                     event_type="CUSTOMER_INVOICE",
                     event_group="ONE",
                     group_sequence=seq,
@@ -128,6 +131,7 @@ async def test_group_blocking_on_failure(
                 ids.append(
                     await producer.publish_async(
                         session,
+                        organization_id=1,
                         event_type="CUSTOMER_INVOICE",
                         event_group="BLOCK",
                         group_sequence=seq,
@@ -205,6 +209,7 @@ async def test_cross_group_failure_isolation(
                 for seq in seqs:
                     await producer.publish_async(
                         session,
+                        organization_id=1,
                         event_type="CUSTOMER_INVOICE",
                         event_group=group,
                         group_sequence=seq,
@@ -241,3 +246,76 @@ async def test_cross_group_failure_isolation(
             assert claimed is not None
             assert claimed.event_group == "B"
             assert claimed.group_sequence == 1
+
+
+@pytest.mark.asyncio
+async def test_same_group_different_orgs_claimed_concurrently(
+    async_session_factory: async_sessionmaker[AsyncSession],
+    repository: OutboxRepository,
+    producer: OutboxProducer,
+) -> None:
+    """FIFO is per (organization_id, event_group); cross-org shares group name freely."""
+    async with async_session_factory() as session:
+        async with session.begin():
+            for org_id in (1, 2):
+                await producer.publish_async(
+                    session,
+                    organization_id=org_id,
+                    event_type="CUSTOMER_INVOICE",
+                    event_group="SHARED",
+                    group_sequence=1,
+                    payload={},
+                )
+
+    async def claim(worker_id: str):
+        async with async_session_factory() as session:
+            async with session.begin():
+                return await repository.claim_next_async(
+                    session,
+                    worker_id=worker_id,
+                    initial_retry_delay_ms=0,
+                    retry_backoff_multiplier=2,
+                    max_retry_delay_ms=1000,
+                )
+
+    results = await asyncio.gather(claim("w1"), claim("w2"))
+    claimed = [r for r in results if r is not None]
+    assert len(claimed) == 2
+    assert {c.organization_id for c in claimed} == {1, 2}
+    assert {c.event_group for c in claimed} == {"SHARED"}
+
+
+@pytest.mark.asyncio
+async def test_same_org_group_still_fifo(
+    async_session_factory: async_sessionmaker[AsyncSession],
+    repository: OutboxRepository,
+    producer: OutboxProducer,
+) -> None:
+    async with async_session_factory() as session:
+        async with session.begin():
+            for seq in (1, 2):
+                await producer.publish_async(
+                    session,
+                    organization_id=9,
+                    event_type="CUSTOMER_INVOICE",
+                    event_group="SHARED",
+                    group_sequence=seq,
+                    payload={},
+                )
+
+    async def claim(worker_id: str):
+        async with async_session_factory() as session:
+            async with session.begin():
+                return await repository.claim_next_async(
+                    session,
+                    worker_id=worker_id,
+                    initial_retry_delay_ms=0,
+                    retry_backoff_multiplier=2,
+                    max_retry_delay_ms=1000,
+                )
+
+    results = await asyncio.gather(claim("w1"), claim("w2"))
+    claimed = [r for r in results if r is not None]
+    assert len(claimed) == 1
+    assert claimed[0].organization_id == 9
+    assert claimed[0].group_sequence == 1

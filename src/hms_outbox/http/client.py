@@ -51,14 +51,18 @@ class OutboxHttpClient:
         url: str,
         event_id: uuid.UUID,
         event_type: str,
+        organization_id: int,
         body: dict[str, Any],
         timeout_ms: int | None = None,
     ) -> DispatchSuccess | DispatchFailure:
+        from hms_outbox.constants import HEADER_ORGANIZATION_ID
+
         headers = {
             "Content-Type": "application/json",
             "Idempotency-Key": str(event_id),
             "X-Outbox-Event-Id": str(event_id),
             "X-Outbox-Event-Type": event_type,
+            HEADER_ORGANIZATION_ID: str(organization_id),
         }
         timeout: httpx.Timeout | float | None = None
         if timeout_ms is not None:

@@ -35,6 +35,7 @@ class AdminService:
         *,
         limit: int = 50,
         offset: int = 0,
+        organization_id: int | None = None,
         event_type: str | None = None,
         event_group: str | None = None,
         reference_type: str | None = None,
@@ -48,6 +49,7 @@ class AdminService:
             session,
             limit=limit,
             offset=offset,
+            organization_id=organization_id,
             event_type=event_type,
             event_group=event_group,
             reference_type=reference_type,
@@ -136,16 +138,20 @@ class AdminService:
         event = await self.repository.retry_event_async(session, event_id)
         return event.to_dict()
 
-    def retry_group(self, session: Session, event_group: str) -> dict[str, Any]:
-        event = self.repository.retry_group(session, event_group)
+    def retry_group(
+        self, session: Session, organization_id: int, event_group: str
+    ) -> dict[str, Any]:
+        event = self.repository.retry_group(session, organization_id, event_group)
         if event is None:
             return {"retried": False, "event": None}
         return {"retried": True, "event": event.to_dict()}
 
     async def retry_group_async(
-        self, session: AsyncSession, event_group: str
+        self, session: AsyncSession, organization_id: int, event_group: str
     ) -> dict[str, Any]:
-        event = await self.repository.retry_group_async(session, event_group)
+        event = await self.repository.retry_group_async(
+            session, organization_id, event_group
+        )
         if event is None:
             return {"retried": False, "event": None}
         return {"retried": True, "event": event.to_dict()}

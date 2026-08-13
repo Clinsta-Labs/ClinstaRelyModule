@@ -75,6 +75,7 @@ def cmd_failed(args: argparse.Namespace) -> int:
             session,
             limit=args.limit,
             offset=args.offset,
+            organization_id=args.organization_id,
             event_type=args.event_type,
             event_group=args.event_group,
         )
@@ -141,7 +142,7 @@ def cmd_retry_group(args: argparse.Namespace) -> int:
     repo = OutboxRepository(model)
     with factory() as session:
         with session.begin():
-            event = repo.retry_group(session, args.group)
+            event = repo.retry_group(session, args.organization_id, args.group)
         if event is None:
             _print_json({"retried": False, "event": None})
         else:
@@ -184,6 +185,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_failed = sub.add_parser("failed", help="List failed / retry-exhausted events")
     p_failed.add_argument("--limit", type=int, default=50)
     p_failed.add_argument("--offset", type=int, default=0)
+    p_failed.add_argument("--organization-id", type=int, default=None)
     p_failed.add_argument("--event-type")
     p_failed.add_argument("--event-group")
     p_failed.set_defaults(func=cmd_failed)
@@ -198,9 +200,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_rg = sub.add_parser(
         "retry-group",
-        help="Retry lowest-sequence RETRY_EXHAUSTED event in a group",
+        help="Retry lowest-sequence RETRY_EXHAUSTED event in an org+group",
     )
     p_rg.add_argument("group")
+    p_rg.add_argument(
+        "--organization-id",
+        type=int,
+        required=True,
+        help="Organization id that scopes the event group",
+    )
     p_rg.set_defaults(func=cmd_retry_group)
 
     p_health = sub.add_parser("health", help="Health and readiness checks")

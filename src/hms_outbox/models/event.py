@@ -35,6 +35,7 @@ def create_outbox_event_model(table_name: str = DEFAULT_TABLE_NAME) -> type["Out
         __table_args__ = (
             CheckConstraint("retry_count >= 0", name=f"ck_{table_name}_retry_count"),
             CheckConstraint("group_sequence >= 0", name=f"ck_{table_name}_group_sequence"),
+            CheckConstraint("organization_id > 0", name=f"ck_{table_name}_organization_id"),
             CheckConstraint(
                 f"status IN ({', '.join(repr(s) for s in sorted(VALID_STATUSES))})",
                 name=f"ck_{table_name}_status",
@@ -45,6 +46,7 @@ def create_outbox_event_model(table_name: str = DEFAULT_TABLE_NAME) -> type["Out
         event_id: Mapped[uuid.UUID] = mapped_column(
             UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
         )
+        organization_id: Mapped[int] = mapped_column(Integer, nullable=False)
         event_type: Mapped[str] = mapped_column(String(150), nullable=False)
         event_group: Mapped[str] = mapped_column(String(255), nullable=False)
         group_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
@@ -82,6 +84,7 @@ def create_outbox_event_model(table_name: str = DEFAULT_TABLE_NAME) -> type["Out
         def to_dict(self) -> dict[str, Any]:
             return {
                 "eventId": str(self.event_id),
+                "organizationId": self.organization_id,
                 "eventType": self.event_type,
                 "eventGroup": self.event_group,
                 "groupSequence": self.group_sequence,
@@ -112,6 +115,7 @@ def create_outbox_event_model(table_name: str = DEFAULT_TABLE_NAME) -> type["Out
             """HTTP request body sent to the target endpoint."""
             return {
                 "eventId": str(self.event_id),
+                "organizationId": self.organization_id,
                 "eventType": self.event_type,
                 "group": self.event_group,
                 "groupSequence": self.group_sequence,

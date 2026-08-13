@@ -43,6 +43,7 @@ class EventDispatcher:
         body = event.dispatch_body()
         log_extra: dict[str, Any] = {
             "event_id": str(event.event_id),
+            "organization_id": event.organization_id,
             "event_type": event.event_type,
             "event_group": event.event_group,
             "group_sequence": event.group_sequence,
@@ -66,6 +67,7 @@ class EventDispatcher:
             url=endpoint.url,
             event_id=event.event_id,
             event_type=event.event_type,
+            organization_id=event.organization_id,
             body=body,
             timeout_ms=endpoint.timeout_ms,
         )

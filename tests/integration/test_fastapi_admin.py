@@ -27,6 +27,7 @@ async def test_admin_router_requires_api_key(
         async with session.begin():
             await producer.publish_async(
                 session,
+                organization_id=1,
                 event_type="CUSTOMER_INVOICE",
                 event_group="ADMIN",
                 group_sequence=1,
@@ -56,3 +57,26 @@ async def test_admin_router_requires_api_key(
         )
         assert resp.status_code == 200
         assert resp.json()["total"] >= 1
+
+        # retry-group requires organization_id
+        missing_org = await client.post(
+            "/internal/outbox/groups/ADMIN/retry",
+            headers={"X-API-Key": "test-admin-key"},
+        )
+        assert missing_org.status_code == 422
+
+        retry = await client.post(
+            "/internal/outbox/groups/ADMIN/retry",
+            params={"organization_id": 1},
+            headers={"X-API-Key": "test-admin-key"},
+        )
+        assert retry.status_code == 200
+        assert retry.json()["retried"] is False
+
+        listed = await client.get(
+            "/internal/outbox/events",
+            params={"organization_id": 1},
+            headers={"X-API-Key": "test-admin-key"},
+        )
+        assert listed.status_code == 200
+        assert listed.json()["total"] >= 1

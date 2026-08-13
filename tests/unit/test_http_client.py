@@ -9,7 +9,11 @@ import pytest
 import respx
 
 from hms_outbox.config.settings import OutboxSettings
-from hms_outbox.constants import HEADER_REPLY_REFERENCE, HEADER_REPLY_REFERENCE_TYPE
+from hms_outbox.constants import (
+    HEADER_ORGANIZATION_ID,
+    HEADER_REPLY_REFERENCE,
+    HEADER_REPLY_REFERENCE_TYPE,
+)
 from hms_outbox.http.client import OutboxHttpClient
 from hms_outbox.http.errors import DispatchFailure, DispatchSuccess
 
@@ -27,7 +31,7 @@ def settings() -> OutboxSettings:
 @pytest.mark.asyncio
 @respx.mock
 async def test_client_uses_reply_headers(settings: OutboxSettings) -> None:
-    respx.post("http://target/invoice").mock(
+    route = respx.post("http://target/invoice").mock(
         return_value=httpx.Response(
             201,
             json={"journalId": "JE-9"},
@@ -42,12 +46,14 @@ async def test_client_uses_reply_headers(settings: OutboxSettings) -> None:
         url="http://target/invoice",
         event_id=uuid.uuid4(),
         event_type="CUSTOMER_INVOICE",
+        organization_id=42,
         body={"eventId": "x"},
     )
     await client.aclose()
     assert isinstance(result, DispatchSuccess)
     assert result.reply_reference_type == "JOURNAL_ENTRY"
     assert result.reply_reference == "JE-9"
+    assert route.calls[0].request.headers[HEADER_ORGANIZATION_ID] == "42"
 
 
 @pytest.mark.asyncio
@@ -70,6 +76,7 @@ async def test_client_invalid_json_succeeds_when_headers_present(
         url="http://target/invoice",
         event_id=uuid.uuid4(),
         event_type="CUSTOMER_INVOICE",
+        organization_id=1,
         body={},
     )
     await client.aclose()
@@ -90,6 +97,7 @@ async def test_client_2xx_without_reply_identity_is_non_retryable(
         url="http://target/invoice",
         event_id=uuid.uuid4(),
         event_type="CUSTOMER_INVOICE",
+        organization_id=1,
         body={},
     )
     await client.aclose()

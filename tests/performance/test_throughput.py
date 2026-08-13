@@ -26,6 +26,7 @@ async def test_bulk_insert_and_claim_throughput(
             for i in range(n):
                 await producer.publish_async(
                     session,
+                    organization_id=1,
                     event_type="CUSTOMER_INVOICE",
                     event_group=f"G-{i % 20}",
                     group_sequence=i,

@@ -31,7 +31,7 @@ Next attempt is eligible when `last_retry_timestamp + delay <= now`.
 
 ```bash
 python -m hms_outbox retry <event-id>
-python -m hms_outbox retry-group <group>
+python -m hms_outbox retry-group <group> --organization-id <org-id>
 ```
 
-`retry_group` resets only the **lowest-sequence `RETRY_EXHAUSTED`** event. It does **not** reset `FAILED` events still under automatic retry. Events in `PROCESSING` cannot be manually retried.
+`retry_group` resets only the **lowest-sequence `RETRY_EXHAUSTED`** event in that `(organization_id, event_group)`. It does **not** reset `FAILED` events still under automatic retry. Events in `PROCESSING` cannot be manually retried.
