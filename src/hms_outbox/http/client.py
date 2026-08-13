@@ -84,17 +84,15 @@ class OutboxHttpClient:
 
         duration_ms = (time.perf_counter() - started) * 1000.0
         if 200 <= response.status_code < 300:
-            try:
-                body_json: Any = response.json() if response.content else None
-            except ValueError:
-                return DispatchFailure(
-                    error_code="INVALID_RESPONSE",
-                    last_error="Response body is not valid JSON",
-                    retryable=False,
-                    status_code=response.status_code,
-                    duration_ms=duration_ms,
-                )
-            parsed = parse_success_response(response.status_code, body_json)
+            body_json: Any = None
+            if response.content:
+                try:
+                    body_json = response.json()
+                except ValueError:
+                    body_json = None
+            parsed = parse_success_response(
+                response.status_code, body_json, headers=response.headers
+            )
             if isinstance(parsed, DispatchSuccess):
                 return DispatchSuccess(
                     reply_reference_type=parsed.reply_reference_type,

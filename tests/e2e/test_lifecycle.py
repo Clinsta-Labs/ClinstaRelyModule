@@ -260,3 +260,109 @@ async def test_non_retryable_http_exhausts(
         event = await repository.get_required_async(session, event_id)
         assert event.status == EventStatus.RETRY_EXHAUSTED.value
         assert event.error_code == "HTTP_422"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_e2e_reply_headers_with_native_json(
+    async_session_factory: async_sessionmaker[AsyncSession],
+    repository: OutboxRepository,
+    producer: OutboxProducer,
+    settings: OutboxSettings,
+) -> None:
+    respx.post("http://target/invoice").mock(
+        return_value=httpx.Response(
+            201,
+            json={"journalId": "JE-HEADER", "status": "posted"},
+            headers={
+                "X-Outbox-Reply-Reference-Type": "JOURNAL_ENTRY",
+                "X-Outbox-Reply-Reference": "JE-HEADER",
+            },
+        )
+    )
+    settings.endpoints = {
+        "CUSTOMER_INVOICE": EndpointConfig(
+            event_type="CUSTOMER_INVOICE", url="http://target/invoice"
+        )
+    }
+    async with async_session_factory() as session:
+        async with session.begin():
+            event_id = await producer.publish_async(
+                session,
+                event_type="CUSTOMER_INVOICE",
+                event_group="HDR",
+                group_sequence=1,
+                payload={},
+            )
+
+    http_client = OutboxHttpClient(settings)
+    worker = ReplayWorker(
+        worker_id="w",
+        session_factory=async_session_factory,
+        claimer=EventClaimer(repository, settings),
+        dispatcher=EventDispatcher(
+            registry=EndpointRegistry.from_settings(settings),
+            http_client=http_client,
+        ),
+        repository=repository,
+        retry_policy=RetryPolicy.from_settings(settings),
+        metrics=ReplayMetrics(),
+        poll_interval_ms=10,
+    )
+    await worker.run_once()
+    await http_client.aclose()
+
+    async with async_session_factory() as session:
+        event = await repository.get_required_async(session, event_id)
+        assert event.status == EventStatus.SYNCED.value
+        assert event.reply_reference_type == "JOURNAL_ENTRY"
+        assert event.reply_reference == "JE-HEADER"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_2xx_without_reply_identity_exhausts(
+    async_session_factory: async_sessionmaker[AsyncSession],
+    repository: OutboxRepository,
+    producer: OutboxProducer,
+    settings: OutboxSettings,
+) -> None:
+    respx.post("http://target/invoice").mock(
+        return_value=httpx.Response(200, json={"ok": True, "id": "ignored"})
+    )
+    settings.endpoints = {
+        "CUSTOMER_INVOICE": EndpointConfig(
+            event_type="CUSTOMER_INVOICE", url="http://target/invoice"
+        )
+    }
+    async with async_session_factory() as session:
+        async with session.begin():
+            event_id = await producer.publish_async(
+                session,
+                event_type="CUSTOMER_INVOICE",
+                event_group="NOID",
+                group_sequence=1,
+                payload={},
+            )
+
+    http_client = OutboxHttpClient(settings)
+    worker = ReplayWorker(
+        worker_id="w",
+        session_factory=async_session_factory,
+        claimer=EventClaimer(repository, settings),
+        dispatcher=EventDispatcher(
+            registry=EndpointRegistry.from_settings(settings),
+            http_client=http_client,
+        ),
+        repository=repository,
+        retry_policy=RetryPolicy.from_settings(settings),
+        metrics=ReplayMetrics(),
+        poll_interval_ms=10,
+    )
+    await worker.run_once()
+    await http_client.aclose()
+
+    async with async_session_factory() as session:
+        event = await repository.get_required_async(session, event_id)
+        assert event.status == EventStatus.RETRY_EXHAUSTED.value
+        assert event.error_code == "INVALID_RESPONSE"

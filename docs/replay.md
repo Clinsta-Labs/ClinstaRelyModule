@@ -44,6 +44,21 @@ Headers: `Content-Type`, `Idempotency-Key`, `X-Outbox-Event-Id`, `X-Outbox-Event
 
 ## Success response
 
+Reply identity is **mandatory**. HTTP 2xx is not enough to mark `SYNCED`.
+
+**Primary (recommended):** response headers. The JSON body can be the target's native format.
+
+```http
+HTTP/1.1 201 Created
+X-Outbox-Reply-Reference-Type: JOURNAL_ENTRY
+X-Outbox-Reply-Reference: JE-10001
+Content-Type: application/json
+
+{"journalId": "JE-10001"}
+```
+
+**Fallback:** spec JSON body (no extra configuration):
+
 ```json
 {
   "success": true,
@@ -52,4 +67,10 @@ Headers: `Content-Type`, `Idempotency-Key`, `X-Outbox-Event-Id`, `X-Outbox-Event
 }
 ```
 
-HTTP 2xx without a valid body (including 204) is treated as failure.
+Rules:
+
+- Both type and reference are required (blank values do not count).
+- Headers win when both are present.
+- A partial header pair is a failure; it is not mixed with the body.
+- Missing identity → `INVALID_RESPONSE` → `RETRY_EXHAUSTED` (not retried).
+- HTTP 204 succeeds only when both reply headers are present.

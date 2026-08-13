@@ -13,6 +13,13 @@ If a target service commits work but the HTTP response is lost, replay may retry
 - `Idempotency-Key: <event_id>`
 - `X-Outbox-Event-Id: <event_id>`
 
+Successful dispatch requires a reply identity. Prefer response headers (JSON body can be native):
+
+- `X-Outbox-Reply-Reference-Type`
+- `X-Outbox-Reply-Reference`
+
+If those headers are absent, the spec JSON body (`success`, `replyReferenceType`, `replyReference`) is accepted. HTTP 2xx without a reply identity is `RETRY_EXHAUSTED`, not `SYNCED`.
+
 ## Features
 
 - Transactional Outbox producer (sync `Session` and async `AsyncSession`)

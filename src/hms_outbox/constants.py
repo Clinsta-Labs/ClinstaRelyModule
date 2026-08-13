@@ -27,3 +27,7 @@ ERROR_NETWORK = "NETWORK_ERROR"
 DEFAULT_TABLE_NAME = "outbox_event"
 TABLE_NAME_PATTERN = r"^[A-Za-z_][A-Za-z0-9_]*$"
 EVENT_TYPE_PATTERN = r"^[A-Z][A-Z0-9_]*$"
+
+# Target response headers (primary source of reply identity).
+HEADER_REPLY_REFERENCE_TYPE = "X-Outbox-Reply-Reference-Type"
+HEADER_REPLY_REFERENCE = "X-Outbox-Reply-Reference"

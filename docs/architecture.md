@@ -31,6 +31,7 @@ Same image/package; different command and env.
 | Group blocking | Earlier FAILED/PROCESSING/CREATED/RETRY_EXHAUSTED blocks later sequences |
 | No duplicate concurrent claim | Atomic claim UPDATE … FOR UPDATE SKIP LOCKED |
 | Crash recovery | PROCESSING older than timeout → FAILED |
+| Reply identity required | Headers `X-Outbox-Reply-Reference-*`, else spec JSON body |
 
 ## Transaction boundaries
 

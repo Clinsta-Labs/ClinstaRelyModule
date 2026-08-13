@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -12,6 +13,8 @@ from hms_outbox.constants import (
     ERROR_HTTP_TIMEOUT,
     ERROR_INVALID_RESPONSE,
     ERROR_NETWORK,
+    HEADER_REPLY_REFERENCE,
+    HEADER_REPLY_REFERENCE_TYPE,
 )
 
 RETRYABLE_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504})
@@ -92,61 +95,103 @@ def classify_transport_error(exc: BaseException) -> DispatchFailure:
     )
 
 
-def parse_success_response(status_code: int, body: Any) -> DispatchSuccess | DispatchFailure:
-    """Validate a 2xx response body.
+def _normalize_reply_value(value: Any) -> str | None:
+    """Return a non-empty reply identity string, or None if unusable."""
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        text = str(value).strip()
+        return text or None
+    if isinstance(value, str):
+        text = value.strip()
+        return text or None
+    return None
 
-    HTTP 204 and empty/invalid bodies are failures because reply references
-    are mandatory.
+
+def _header_get(headers: Mapping[str, str] | None, name: str) -> str | None:
+    if headers is None:
+        return None
+    getter = getattr(headers, "get", None)
+    if getter is None:
+        return None
+    # httpx.Headers is case-insensitive; plain dicts are not.
+    value = getter(name)
+    if value is None:
+        for key, candidate in headers.items():
+            if str(key).lower() == name.lower():
+                value = candidate
+                break
+    return _normalize_reply_value(value)
+
+
+def extract_reply_from_headers(
+    headers: Mapping[str, str] | None,
+) -> tuple[str | None, str | None]:
+    """Read reply identity from X-Outbox-Reply-Reference-* headers."""
+    return (
+        _header_get(headers, HEADER_REPLY_REFERENCE_TYPE),
+        _header_get(headers, HEADER_REPLY_REFERENCE),
+    )
+
+
+def extract_reply_from_body(body: Any) -> tuple[str | None, str | None]:
+    """Read spec JSON fallback: success=true plus replyReference* fields."""
+    if not isinstance(body, dict) or body.get("success") is not True:
+        return None, None
+    return (
+        _normalize_reply_value(body.get("replyReferenceType")),
+        _normalize_reply_value(body.get("replyReference")),
+    )
+
+
+def parse_success_response(
+    status_code: int,
+    body: Any,
+    headers: Mapping[str, str] | None = None,
+) -> DispatchSuccess | DispatchFailure:
+    """Resolve reply identity from a 2xx response.
+
+    Primary: ``X-Outbox-Reply-Reference-Type`` and ``X-Outbox-Reply-Reference``.
+    Fallback: spec JSON ``{success, replyReferenceType, replyReference}``.
+
+    Both values are mandatory. Missing identity is a non-retryable failure.
+    Headers take precedence; a partial header pair is not mixed with the body.
     """
-    if status_code == 204:
+    header_type, header_ref = extract_reply_from_headers(headers)
+    if header_type and header_ref:
+        return DispatchSuccess(
+            reply_reference_type=header_type,
+            reply_reference=header_ref,
+            status_code=status_code,
+            duration_ms=0.0,
+        )
+    if header_type or header_ref:
+        missing = HEADER_REPLY_REFERENCE if header_type else HEADER_REPLY_REFERENCE_TYPE
         return DispatchFailure(
             error_code=ERROR_INVALID_RESPONSE,
-            last_error="HTTP 204 has no body; replyReference is required",
+            last_error=f"Incomplete reply headers; missing {missing}",
             retryable=False,
             status_code=status_code,
         )
-    if not isinstance(body, dict):
-        return DispatchFailure(
-            error_code=ERROR_INVALID_RESPONSE,
-            last_error="Response body must be a JSON object",
-            retryable=False,
+
+    body_type, body_ref = extract_reply_from_body(body)
+    if body_type and body_ref:
+        return DispatchSuccess(
+            reply_reference_type=body_type,
+            reply_reference=body_ref,
             status_code=status_code,
+            duration_ms=0.0,
         )
-    if body.get("success") is not True:
-        return DispatchFailure(
-            error_code=ERROR_INVALID_RESPONSE,
-            last_error="Response success must be true",
-            retryable=False,
-            status_code=status_code,
-        )
-    reply_type = body.get("replyReferenceType")
-    reply_ref = body.get("replyReference")
-    if not isinstance(reply_type, str) or not reply_type.strip():
-        return DispatchFailure(
-            error_code=ERROR_INVALID_RESPONSE,
-            last_error="Missing or invalid replyReferenceType",
-            retryable=False,
-            status_code=status_code,
-        )
-    if not isinstance(reply_ref, str) and not isinstance(reply_ref, (int, float)):
-        return DispatchFailure(
-            error_code=ERROR_INVALID_RESPONSE,
-            last_error="Missing or invalid replyReference",
-            retryable=False,
-            status_code=status_code,
-        )
-    if reply_ref is None or (isinstance(reply_ref, str) and not reply_ref.strip()):
-        return DispatchFailure(
-            error_code=ERROR_INVALID_RESPONSE,
-            last_error="Missing or invalid replyReference",
-            retryable=False,
-            status_code=status_code,
-        )
-    return DispatchSuccess(
-        reply_reference_type=str(reply_type),
-        reply_reference=str(reply_ref),
+
+    return DispatchFailure(
+        error_code=ERROR_INVALID_RESPONSE,
+        last_error=(
+            "Missing reply identity; require headers "
+            f"{HEADER_REPLY_REFERENCE_TYPE} and {HEADER_REPLY_REFERENCE} "
+            "or JSON success/replyReferenceType/replyReference"
+        ),
+        retryable=False,
         status_code=status_code,
-        duration_ms=0.0,
     )
 
 

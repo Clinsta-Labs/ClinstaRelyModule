@@ -30,3 +30,17 @@ app.include_router(create_outbox_router())
 | POST | `/internal/outbox/groups/{group}/retry` | X-API-Key |
 | GET | `/internal/outbox/health` | none (liveness) |
 | GET | `/internal/outbox/ready` | none (readiness) |
+
+## Target HTTP contract
+
+Replay POSTs the event and requires a reply identity to mark `SYNCED`.
+
+Request headers: `Idempotency-Key`, `X-Outbox-Event-Id`, `X-Outbox-Event-Type`.
+
+Response (primary):
+
+- `X-Outbox-Reply-Reference-Type`
+- `X-Outbox-Reply-Reference`
+
+Response (fallback JSON): `{ "success": true, "replyReferenceType": "...", "replyReference": "..." }`.
+

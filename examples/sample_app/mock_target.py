@@ -31,6 +31,8 @@ class Handler(BaseHTTPRequestHandler):
         data = json.dumps(payload).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
+        self.send_header("X-Outbox-Reply-Reference-Type", "JOURNAL_ENTRY")
+        self.send_header("X-Outbox-Reply-Reference", reply)
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
