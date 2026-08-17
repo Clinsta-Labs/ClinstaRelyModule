@@ -14,8 +14,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length)
-        body = json.loads(raw.decode("utf-8") or "{}")
-        event_id = body.get("eventId") or self.headers.get("X-Outbox-Event-Id")
+        json.loads(raw.decode("utf-8") or "{}")  # consume/validate payload; identity is in headers
+        event_id = self.headers.get("X-Outbox-Event-Id")
         path = urlparse(self.path).path
         if event_id in SEEN:
             reply = SEEN[event_id]

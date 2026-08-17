@@ -112,20 +112,13 @@ def create_outbox_event_model(table_name: str = DEFAULT_TABLE_NAME) -> type["Out
             }
 
         def dispatch_body(self) -> dict[str, Any]:
-            """HTTP request body sent to the target endpoint."""
-            return {
-                "eventId": str(self.event_id),
-                "organizationId": self.organization_id,
-                "eventType": self.event_type,
-                "group": self.event_group,
-                "groupSequence": self.group_sequence,
-                "referenceType": self.reference_type,
-                "reference": self.reference,
-                "payload": self.payload,
-                "createdAt": self.created_at.isoformat().replace("+00:00", "Z")
-                if self.created_at
-                else None,
-            }
+            """HTTP request body sent to the target: producer payload only.
+
+            Sequencing metadata (event id, org, group, sequence, references)
+            stays on the outbox row and in ``to_dict()``. Tenancy is sent as
+            ``X-Outbox-Organization-Id``, not in this body.
+            """
+            return dict(self.payload)
 
     OutboxEvent.__name__ = "OutboxEvent"
     OutboxEvent.__qualname__ = "OutboxEvent"

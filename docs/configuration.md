@@ -36,6 +36,7 @@ Event types must match `^[A-Z][A-Z0-9_]*$`.
 
 `organization_id` is **per event** (producer argument / table column), not an environment variable.
 The library always sets request header `X-Outbox-Organization-Id` from the claimed row.
+The POST body is the stored `payload` (target-native JSON), not an Outbox envelope.
 
 Example:
 

@@ -8,7 +8,7 @@ claims exactly-once delivery.
 from hms_outbox.models.event import EventStatus, OutboxEvent
 from hms_outbox.producer.producer import OutboxProducer
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __all__ = [
     "EventStatus",
     "OutboxEvent",

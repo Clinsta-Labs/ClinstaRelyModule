@@ -91,7 +91,8 @@ async def test_e2e_lifecycle(
     assert request.headers["X-Outbox-Event-Id"] == str(event_id)
     assert request.headers["X-Outbox-Organization-Id"] == "1"
     body = json.loads(request.content.decode("utf-8"))
-    assert body["organizationId"] == 1
+    assert body == {"invoiceId": "INV-10001"}
+    assert "organizationId" not in body
 
     async with async_session_factory() as session:
         event = await repository.get_required_async(session, event_id)

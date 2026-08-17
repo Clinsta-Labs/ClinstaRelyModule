@@ -27,22 +27,16 @@ An event is eligible when:
 
 ## HTTP request
 
+The POST body is the producer `payload` only. Sequencing metadata (`eventId`, `eventType`, `group`, `groupSequence`, `referenceType`, `reference`, `createdAt`) stays on the outbox row for replay/FIFO and is not sent to the target.
+
 ```json
 {
-  "eventId": "...",
-  "organizationId": 1,
-  "eventType": "CUSTOMER_INVOICE",
-  "group": "CUSTOMER-1001",
-  "groupSequence": 42,
-  "referenceType": "INVOICE",
-  "reference": "INV-10001",
-  "payload": {},
-  "createdAt": "2026-08-11T10:00:00Z"
+  "invoiceId": "INV-10001"
 }
 ```
 
 Headers: `Content-Type`, `Idempotency-Key`, `X-Outbox-Event-Id`, `X-Outbox-Event-Type`, `X-Outbox-Organization-Id`, plus any `OUTBOX_REPLAY_HEADER_*`.
-The library always sets `X-Outbox-Organization-Id` from the row (not from env).
+The library always sets `X-Outbox-Organization-Id` from the row (not from env). Tenancy for the target is that header, not a wrapped `organizationId` field.
 
 ## Success response
 

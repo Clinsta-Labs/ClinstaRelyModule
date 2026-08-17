@@ -30,6 +30,10 @@ alembic -c alembic.ini upgrade head
 - **Existing empty table:** revision `20260813_0002` adds the column.
 - **Existing rows without org:** migration refuses to invent ids — truncate or backfill before upgrade.
 
+### Upgrading to 0.3.0
+
+`0.3.0` changes the **HTTP dispatch body** only (no schema change). Replay POSTs the stored `payload` as the JSON body. Sequencing fields stay on `outbox_event` and are not wrapped around the payload. Tenancy is `X-Outbox-Organization-Id`. Producers must store the **target's native request** in `payload`.
+
 ## Verify
 
 ```bash

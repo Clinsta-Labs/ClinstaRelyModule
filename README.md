@@ -29,7 +29,7 @@ If those headers are absent, the spec JSON body (`success`, `replyReferenceType`
 - Processing-timeout recovery for crashed workers
 - Environment-driven EventType → endpoint mapping (no Python handlers)
 - Statistics, failed-event APIs, manual retry / retry-group
-- Dispatch always sends `organizationId` (body) and `X-Outbox-Organization-Id` (header)
+- Dispatch always sends `X-Outbox-Organization-Id` (header); the POST body is the producer `payload` only
 - CLI (`python -m hms_outbox ...`)
 - Optional FastAPI admin router (`X-API-Key`)
 

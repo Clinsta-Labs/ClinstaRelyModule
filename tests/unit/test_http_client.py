@@ -47,7 +47,7 @@ async def test_client_uses_reply_headers(settings: OutboxSettings) -> None:
         event_id=uuid.uuid4(),
         event_type="CUSTOMER_INVOICE",
         organization_id=42,
-        body={"eventId": "x"},
+        body={"invoiceId": "INV-9"},
     )
     await client.aclose()
     assert isinstance(result, DispatchSuccess)

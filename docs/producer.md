@@ -39,7 +39,8 @@ async with session.begin():
 
 - The producer **never** commits your transaction.
 - Insert business data and the Outbox event in the **same** transaction.
-- `organization_id` is required (`int > 0`). It scopes FIFO and is sent on every dispatch.
+- `organization_id` is required (`int > 0`). It scopes FIFO and is sent on every dispatch as `X-Outbox-Organization-Id`.
+- Store the **target's native request JSON** in `payload`; replay POSTs that object as the HTTP body.
 - `event_id` is generated once (UUID) and never changed on retry.
 - Duplicate `reference` values are allowed across different events.
 - `group_sequence` must be `>= 0` and is the FIFO key within `(organization_id, event_group)`.
